@@ -1,1 +1,431 @@
-def Automation
+import xmltodict
+import requests
+import tkinter as tk
+from PIL import ImageTk, Image
+from tkinter import *
+from tkinter import scrolledtext
+import sqlite3
+
+
+def toonStationFrame():
+    beginFrame.pack_forget()
+    stationFrame.pack()
+    leegStationFrameOutputVeld()
+
+
+def toonReisPlannerFrame():
+    beginFrame.pack_forget()
+    reisFrame.pack()
+    leegReisPlannerFrameOutputVeld()
+
+
+def toonBeginFrame():
+    stationFrame.pack_forget()
+    reisFrame.pack_forget()
+    beginFrame.pack()
+
+
+def schrijfStationFrameOutputVeld(output):
+    stationFrameOutputVeld.configure(state="normal")
+    stationFrameOutputVeld.insert(tk.INSERT, output)
+    stationFrameOutputVeld.configure(state="disable")
+
+
+def leegStationFrameOutputVeld():
+    stationFrameOutputVeld.configure(state="normal")
+    stationFrameOutputVeld.delete('1.0', END)
+    stationFrameOutputVeld.configure(state="disable")
+
+
+def schrijfReisPlannerFrameOutputVeld(output):
+    reisPlannerFrameOutputVeld.configure(state="normal")
+    reisPlannerFrameOutputVeld.insert(tk.INSERT, output)
+    reisPlannerFrameOutputVeld.configure(state="disable")
+
+
+def leegReisPlannerFrameOutputVeld():
+    reisPlannerFrameOutputVeld.configure(state="normal")
+    reisPlannerFrameOutputVeld.delete('1.0', END)
+    reisPlannerFrameOutputVeld.configure(state="disable")
+
+
+def toonActueleVertrektijden(station):
+    leegStationFrameOutputVeld()
+
+    if station is None or station is '':                                  # If no station is already given, get one from the inputfield
+       station = stationfield.get()                                       # Declare inputfield as station.
+
+    if station == "":
+        output = "Station kan niet leeg zijn"
+        schrijfStationFrameOutputVeld(output)
+    else:
+        # Open DB
+        database = 'ns_api_pipos.sqlite'
+        conn = sqlite3.connect(database)
+        c = conn.cursor()
+
+        # Fetch data from NS API
+        auth_details = ('Pieter.pa.visser@student.hu.nl', 'JjvTmFbc1sjWDCB1Bkfs_m0Y54mVuZdbbSqDIKY0hg_gBt18beTUKA')
+        api_url = 'http://webservices.ns.nl/ns-api-avt?station=' + station  # Fetch avt.
+        response = requests.get(api_url, auth=auth_details)  # Auth for the fetch
+        vertrekDict = xmltodict.parse(response.text)
+
+        # Write output
+        leegStationFrameOutputVeld()
+        output = 'Dit zijn de vertrekkende treinen uit ' + station + ":\n\n"         # Building output.
+        schrijfStationFrameOutputVeld(output)                                                   # Insert output in Scrolledtext frame.
+
+        if 'ActueleVertrekTijden' not in vertrekDict or 'VertrekkendeTrein' not in vertrekDict['ActueleVertrekTijden']:
+            output = "Actuele vetrektijden voor dit station konden niet worden opgehaald."
+            schrijfStationFrameOutputVeld(output)
+            return
+
+        for vertrek in vertrekDict['ActueleVertrekTijden']['VertrekkendeTrein']:    # Loop through vertrekXML
+            output = stelVertrektijdenOutputSamen(vertrek, c)
+            schrijfStationFrameOutputVeld(output)   # Insert output in Scrolledtext window.
+
+        # Save and close DB
+        conn.commit()
+        conn.close()
+
+
+def stelVertrektijdenOutputSamen(vertrek, c):
+    output = ""
+
+    # Validate Rit nummer.
+    if 'RitNummer' in vertrek:
+        ritNummer = vertrek['RitNummer']
+    else:
+        ritNummer = "Niet beschikbaar"  # output += "Rit nummer: niet beschikbaar \n"
+
+    # Validate eindbestemming
+    if 'EindBestemming' in vertrek:
+        eindBestemming = vertrek['EindBestemming']  # Fetch end station.
+        output += "Naar: " + eindBestemming + "\n"  # Building output.
+    else:
+        eindBestemming = "Niet beschikbaar"
+        output += "Eindbestemming niet beschikbaar\n"  # Building output.
+
+    # Validate vertrektijd
+    if 'VertrekTijd' in vertrek:
+        vertrektijd = vertrek['VertrekTijd']  # Fetch time example:2016-09-27T18:36:00+0200
+        vertrektijd = vertrektijd[11:16]  # Fetch hours:minutes 18:36
+        output += "Tijd: " + vertrektijd + "\n"
+    else:
+        vertrektijd = "Niet beschikbaar"
+        output += "Vertrektijd niet beschikbaar\n"  # Building output.
+
+    # Validate trein soort
+    if 'TreinSoort' in vertrek:
+        treinSoort = vertrek['TreinSoort']  # Train type
+        output += 'Trein: ' + treinSoort + "\n"
+    else:
+        treinSoort = "Niet beschikbaar"
+        output += "Trein soort niet beschikbaar\n"  # Building output.
+
+    # Validate vetrek spoor
+    if 'VertrekSpoor' in vertrek:
+        if '#text' in vertrek['VertrekSpoor']:
+            vertrekSpoor = int(vertrek['VertrekSpoor']['#text'])  # Start location.
+            output += "Spoor: " + str(vertrekSpoor) + "\n"
+        else:
+            vertrekSpoor = "Niet beschikbaar"
+            output += "Spoor: Niet beschikbaar\n"
+    else:
+        vertrekSpoor = "Niet beschikbaar"
+        output += "Spoor: Niet beschikbaar\n"
+
+    # Validate vetrek spoor
+    if 'RouteTekst' in vertrek:
+        routeTekst = vertrek['RouteTekst']
+        output += "Route: " + routeTekst + "\n"
+    else:
+        routeTekst = "Niet beschikbaar"
+        output += "Route: Niet beschikbaar\n"
+
+    # Validate Reis Tip
+    if 'ReisTip' in vertrek:
+        reisTip = vertrek['ReisTip']
+        output += "Route: " + reisTip + "\n"
+    else:
+        reisTip = "Niet beschikbaar"
+        output += "Reis Tip: Niet beschikbaar\n"
+
+    output += "\n"
+
+    # Write request to db
+    actueleVertrekTijd = [eindBestemming, vertrektijd, treinSoort, vertrekSpoor, routeTekst, reisTip, ritNummer]
+    c.execute('insert into VertrekkendeTrein(EindBestemming, VertrekTijd, TreinSoort,'
+              ' VertrekSpoor, RouteTekst, ReisTip, RitNummer) values (?, ?, ?, ?, ?, ?, ?)', actueleVertrekTijd)
+
+    return output
+
+
+def reisplanner():
+    vertrekSpoor = ""
+    output = ""
+    leegReisPlannerFrameOutputVeld()
+    beginStationInvoer = vanstationfield.get()
+    eindStationInvoer = naarstationfield.get()
+    if beginStationInvoer == "" or eindStationInvoer == "":
+        output = "Van of Naar kan niet leeg zijn"
+        schrijfStationFrameOutputVeld(output)
+    else:
+        # Fetch data from NS API
+        auth_details = ('Pieter.pa.visser@student.hu.nl', 'JjvTmFbc1sjWDCB1Bkfs_m0Y54mVuZdbbSqDIKY0hg_gBt18beTUKA')
+        api_url = 'http://webservices.ns.nl/ns-api-treinplanner?fromStation=' + str(beginStationInvoer) + '&toStation=' + str(eindStationInvoer)
+        response = requests.get(api_url, auth=auth_details)
+        reisplannerDict = xmltodict.parse(response.text)
+
+        # Write output
+        leegStationFrameOutputVeld()
+        optimaleReisOutput = "Optimale route van " + beginStationInvoer + " naar " + eindStationInvoer + ":\n"
+        # output = "Overige routes van " + beginStationInvoer + " naar " + eindStationInvoer + ":\n\n"
+
+        if 'ReisMogelijkheden' not in reisplannerDict or 'ReisMogelijkheid' not in reisplannerDict['ReisMogelijkheden']:
+            output = "Reisplanning voor deze reis kon niet worden opgehaald."
+            schrijfReisPlannerFrameOutputVeld(output)
+            return
+
+        for reis in reisplannerDict['ReisMogelijkheden']['ReisMogelijkheid']:
+            if 'Optimaal' in reis:
+                optimaal = reis['Optimaal']
+
+                if optimaal == 'true':
+                    optimaleReisOutput += stelReisPlannerOutputSamen(reis) + stelReisDeelOutputSamen(reis)
+                # else:
+                #     output += str(stelReisPlannerOutputSamen(reis))
+
+        # + output
+        output = optimaleReisOutput
+        schrijfReisPlannerFrameOutputVeld(output)
+
+
+def stelReisPlannerOutputSamen(reis):
+        output = ""
+        # Validate Overstappen.
+        if 'AantalOverstappen' in reis:
+            overstappen = reis['AantalOverstappen']
+            output += "Overstappen: " + overstappen + "\n"
+        else:
+            overstappen = "Niet beschikbaar"
+            output += "Overstappen: niet beschikbaar\n"
+
+        # Validate Actuele reistijd.
+        if 'ActueleReisTijd' in reis:
+            actueleReisTijd = reis['ActueleReisTijd']
+            output += 'Actuele reistijd: ' + actueleReisTijd + "\n"
+        else:
+            actueleReisTijd = "Niet beschikbaar"
+            output += "Actuele reistijd: niet beschikbaar \n"
+
+        # Validate Actuele vertrektijd.
+        if 'ActueleVertrekTijd' in reis:
+            actueleVertrekTijd = reis['ActueleVertrekTijd']
+            actueleVertrekTijd = actueleVertrekTijd[11:16]
+            output += "Actuele vetrektijd: " + actueleVertrekTijd + "\n"
+        else:
+            actueleVertrekTijd = "Niet beschikbaar"
+            output += "Actuele vertrektijd: niet beschikbaar \n"
+
+        # Validate Actuele Aankomsttijd.
+        if 'ActueleAankomstTijd' in reis:
+            actueleAankomstTijd = reis['ActueleAankomstTijd']
+            actueleAankomstTijd = actueleAankomstTijd[11:16]
+            output += "Actuele Aankomsttijd: " + actueleAankomstTijd + "\n\n"
+        else:
+            actueleAankomstTijd = "Niet beschikbaar"
+            output += "Actuele aankomsttijd: niet beschikbaar \n"
+
+        # #Validate reisdelen
+        # if 'ReisDeel' not in reis:
+        #     output += "Reisdelen kunnen niet worden opgehaald."
+        # else:
+        #     output += stelReisPlannerOutputSamen(reis)
+
+        return output
+
+def stelReisDeelOutputSamen(reis):
+    global naam, spoor
+    output = ""
+    # Stel reisdelen samen
+    if 'ReisStop' in reis['ReisDeel']:
+        reisDeel = reis['ReisDeel']
+        reisStop = reisDeel['ReisStop']
+        print("Lengte reisDeel:" + str(len(reisDeel)))
+        print("Lengte reisStop:" + str(len(reisStop)))
+        print("reisStop:" + str(reisDeel['ReisStop']))
+        print("reisdeel:" + str(reis['ReisDeel']))
+        # print(reisDeel['ReisStop'])
+        # if len(reisStop) gelijk of kleiner aan 3 and (len(reisDeel) gelijk of groter dan 6):
+        # if len(reisStop) > 3 and (len(reisDeel) > 6):
+        print((len('ReisDeel') in reis['ReisDeel']))
+        if len('ReisDeel') in reis['ReisDeel'] >= 3:
+            for reisDeel in reis['ReisDeel']:
+                for i in reisDeel['ReisStop']:
+                    if 'Spoor' in i:
+                        output += "Station: " + i['Naam'] + "\n"
+                        output += "Spoor: " + i['Spoor']['#text'] + "\n\n"
+        else:
+            print("Dit werkt niet")
+            output += "Station: "
+            output += "Spoor: "
+
+                # reisStop = reisDeel['ReisStop']
+                # if count(reisStop) is True:
+                #     spoor = reisDeel['Spoor']['#text']
+                #     output += 'Spoor: ' + spoor + "\n"
+                # else:
+                #     output += "Geen spoor informatie beschikbaar" + "\n"
+
+                    # if 'Naam' in reisDeel:
+                    #     naam = reisDeel['Naam']
+                    #     output += 'Station: ' + naam + "\n"
+
+                    # if 'Spoor' in reisDeel:
+                    #     if '#text' in reisDeel['Spoor']:
+                    #         spoor = reisDeel['Spoor']['#text']
+                    #         output += 'Spoor: ' + spoor + "\n"
+                    #     else:
+                    #         output += "Geen spoor informatie beschikbaar" + "\n"
+        # else:
+        #     for reisStop in reisDeel['ReisStop']:
+        #         print(len(reisDeel))
+        #         print(reisDeel)
+        #         if 'Naam' in reisStop:
+        #             naam = reisStop['Naam']
+        #             output += 'Station: ' + naam + "\n"
+        #
+        #         if 'Spoor' in reisStop:
+        #             if '#text' in reisStop['Spoor']:
+        #                 spoor = reisStop['Spoor']['#text']
+        #                 output += 'Spoor: ' + spoor + "\n"
+        #             else:
+        #                 output += "Geen spoor informatie beschikbaar" + "\n"
+        #         else:
+        #             output += "Geen spoor informatie beschikbaar" + "\n"
+
+        # Validate Status.
+        if 'Status' in reis:
+            status = reis['Status']
+            output += "Status: " + status.title() + "\n"
+        else:
+            output += "Status: niet beschikbaar \n"
+
+        return output
+# Gui opbouwen.
+root = Tk()
+root.config(bg='#ffc917')
+root.title("NS Beginscherm")
+
+# Beginframe opbouwen.
+beginFrame = Frame(master=root, width=830, height=650)
+beginFrame.pack(fill="both", expand=True)
+
+# Canvas maken en achtergrond image plaatsen.
+canv = Canvas(root, bg='#ffc917')
+img = ImageTk.PhotoImage(ImageTk.Image.open("Beginscherm.jpg"))  # PIL solution
+canv.create_image(20, 20, anchor=NW, image=img)
+canv.config(bg='#ffc917')
+canv.place(x=0, y=0, relwidth=1, relheight=1)
+
+# Knoppen op beginscherm plaatsen.
+button = Button(master=root, text='', command=toonStationFrame)
+avtknop = PhotoImage(file="avt-knopje.png")
+button.config(image=avtknop, activebackground="#ffc917", bd=0)
+button.place(x=447, y=406)
+
+button = Button(master=root, text='', command=toonReisPlannerFrame)
+reisplannerknop = PhotoImage(file="button_reisplanner.png")
+button.config(image=reisplannerknop, activebackground="#ffc917", bd=0)
+button.place(x=594, y=406)
+
+# Stationsframe opbouwen.
+stationFrame = Frame(master=root, width=830, height=650)
+stationFrame.pack(fill="both", expand=True)
+stationFrame.pack_propagate(0)
+stationFrame.config(bg='#ffc917')
+
+# Inputveld maken.
+stationfield = Entry(master=stationFrame)
+stationfield.pack(padx=40, pady=40)
+stationfield.insert(0, '')
+stationfield.config(bg='#ffc917')
+
+# Knop maken voor actuele vetrektijden.
+button = Button(master=stationFrame, command=lambda: toonActueleVertrektijden(''))
+photo = PhotoImage(file="button_vertrektijden.png")
+button.config(image=photo, activebackground="black", bg="black", bd=0)
+button.pack(pady=10)
+
+# Knop maken voor actuele vetrektijden van Utrecht.
+button = Button(master=stationFrame, command=lambda: toonActueleVertrektijden('Utrecht'))
+photo1 = PhotoImage(file="button_huidig-station.png")
+button.config(image=photo1, activebackground="black", bg="black", bd=0)
+button.pack(pady=10)
+
+# Terugknop naar beginscherm maken.
+backbutton = Button(master=stationFrame, text='<', command=toonBeginFrame)
+backbutton.pack(padx=20, pady=20)
+photo2 = PhotoImage(file="button_terug.png")
+backbutton.config(image=photo2, activebackground="black", bg="black", bd=0)
+
+# Frame voor de output.
+outputFrame = Frame(stationFrame, width=100, height=50)
+outputFrame.pack(fill=BOTH, expand=YES)
+outputFrame.config(bg='#ffc917')
+
+# Scrolledtext vak maken voor de output.
+stationFrameOutputVeld = tk.scrolledtext.ScrolledText(stationFrame, width=400, height=300, font="Frutiger-Black", fg='#003082')
+stationFrameOutputVeld.pack(padx=40, pady=40, fill="both", expand=True)
+stationFrameOutputVeld.config(bg='#ffc917')
+
+# Reisplannerframe opbouwen.
+reisFrame = Frame(master=root, width=830, height=650)
+reisFrame.pack(fill="both", expand=True)
+reisFrame.pack_propagate(0)
+reisFrame.config(bg="#ffc917")
+
+# Van station label.
+w = Label(master=reisFrame, text="Van:", font=("Helvetica", 16), bg="#ffc917")
+w.pack(padx=0, pady=0)
+
+# Van station Inputveld.
+vanstationfield = Entry(master=reisFrame)
+vanstationfield.pack(padx=10, pady=30)
+vanstationfield.insert(0, '')
+
+# Naar station label.
+w = Label(reisFrame, text="Naar:", font=("Helvetica", 16), bg="#ffc917")
+w.pack(padx=0, pady=0)
+
+# Naar station Inputveld.
+naarstationfield = Entry(master=reisFrame)
+naarstationfield.pack(padx=10, pady=30)
+naarstationfield.insert(0, '')
+
+# Knop om reisplanner te gebruiken.
+button = Button(master=reisFrame, text='Actuele verktrektijden bepaald station', command=reisplanner)
+photo3 = PhotoImage(file="button_plan-reis.png")
+button.config(image=photo3, activebackground="black", bg="black", bd=0)
+button.pack(pady=10)
+
+# Knop om terug te gaan naar het begin scherm.
+button = Button(master=reisFrame, text='Terug naar hoofdscherm', command=toonBeginFrame)
+photo4 = PhotoImage(file="button_terug.png")
+button.config(image=photo4, activebackground="black", bg="black", bd=0)
+button.pack(pady=30)
+
+# Frame voor de output.
+outputFrame1 = Frame(reisFrame, width=400, height=300)
+outputFrame1.pack(fill=BOTH, expand=YES)
+outputFrame1.config(bg='#ffc917')
+
+# Scrolledtext vak maken voor de output.
+reisPlannerFrameOutputVeld = tk.scrolledtext.ScrolledText(outputFrame1, width=400, height=300, font="Frutiger-Black", fg='#003082')
+reisPlannerFrameOutputVeld.pack(padx=20, pady=20, fill="both", expand=True)
+reisPlannerFrameOutputVeld.config(bg='#ffc917')
+
+toonBeginFrame()
+root.mainloop()
+151.101.36.133
