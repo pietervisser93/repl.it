@@ -2,14 +2,11 @@ import socket
 import sys
 import subprocess
 
-global s, data, conn
-
 
 def messageRelay():
-    global s, data, conn, addr
     HOST = ''  # Listen on all interfaces.
     PORT = 8888  # Assign port 8888
-
+    Usernames = []
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((HOST, PORT))
@@ -30,14 +27,19 @@ def messageRelay():
         print("There was an error connecting")
 
     # Server reports back to client
-    conn.sendall(b'Welcome to the server\r\n\r\n')
-    conn.sendall(b'Tell me something: ')
+    conn.sendall(b'Tell me your name first: ')
+    data = conn.recv(1024)
+    username = str(data.decode('ascii')).rstrip()
+    print("> Username:" + username)
+    conn.sendall(b'Welcome to the server ' + username.encode() + b'! \r\n')
+    conn.sendall(b'Type something to me and I will respond with the same. \r\n')
+    conn.sendall(b'Try launching an app through me, to stop type stop.\r\n\r\n')
 
     while True:
         try:
             # Wait on input of client and return input (echo service)
             data = conn.recv(1024)
-            data = str(data.decode('ascii')).strip()  # # Remove \r | \n | \r\n
+            data = str(data.decode('ascii')).rstrip()  # # Remove \r | \n | \r\n
             print('> Client data received: ' + data)
 
         except:
@@ -45,24 +47,9 @@ def messageRelay():
 
         try:
             if data == "":
-                print("IF")
-                conn.sendall(b"please dont leave your input empty\r\n")
+                print("Ignoring empty input")
             else:
-                print("ELSE")
                 conn.sendall(b'You told me: ' + data.encode() + b"\r\n")
-
-            # if data != " " or data != "":
-              #  conn.sendall(b"You told me: " + data.encode())
-                #conn.sendall(b'\r\n')
-
-            # if data == " ":
-            #   print("Users input was empty")
-            #   conn.sendall(b"please dont leave your input empty\r\n")
-
-            #if data == "":
-            #   print("Users input was empty")
-            #   conn.sendall(b"please dont leave your input empty\r\n")
-
 
         except:
             print("No valid input!")
@@ -79,7 +66,29 @@ def messageRelay():
             print(Err)
             return
 
+        except:
+            print("Something else went wrong")
+
 
 messageRelay()
+
+
+def openApps():
+    try:
+        if data == "notepad":
+            subprocess.Popen('C:\\Windows\\System32\\notepad.exe')
+
+    except:
+        print("Couldnt open Notepad")
+
+    try:
+        if data == "Notepad":
+            subprocess.Popen('C:\\Windows\\System32\\notepad.exe')
+
+    except:
+        print("Couldnt open Notepad")
+
+
+openApps()
 
 
