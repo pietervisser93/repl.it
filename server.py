@@ -44,17 +44,23 @@ def messageRelay():
             print("No data or invalid data received")
 
         try:
-            if data is not None:
-                conn.sendall(b"You told me: " + data.encode())
-                conn.sendall(b'\r\n')
+            if data == "" or data == " ":
+                conn.sendall(b"please dont leave your input empty\r\n")
+            else:
+                conn.sendall(b'You told me: ' + data.encode() + b"\r\n")
 
-                if data == " ":
-                    print("Users input was empty")
-                    conn.sendall(b"please dont leave your input empty\r\n")
+            # if data != " " or data != "":
+              #  conn.sendall(b"You told me: " + data.encode())
+                #conn.sendall(b'\r\n')
 
-                if data == "":
-                    print("Users input was empty")
-                    conn.sendall(b"please dont leave your input empty\r\n")
+            # if data == " ":
+            #   print("Users input was empty")
+            #   conn.sendall(b"please dont leave your input empty\r\n")
+
+            #if data == "":
+            #   print("Users input was empty")
+            #   conn.sendall(b"please dont leave your input empty\r\n")
+
 
         except:
             print("No valid input!")
