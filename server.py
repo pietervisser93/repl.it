@@ -5,7 +5,6 @@ import subprocess
 global s, data, conn
 
 
-# noinspection PyBroadException
 def messageRelay():
     global s, data, conn, addr
     HOST = ''  # Listen on all interfaces.
