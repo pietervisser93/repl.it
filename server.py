@@ -37,7 +37,7 @@ def messageRelay():
         try:
             # Wait on input of client and return input (echo service)
             data = conn.recv(1024)
-            data = str(data.decode('ascii')).rstrip("\r\n")  # # Remove \r | \n | \r\n
+            data = str(data.decode('ascii')).strip()  # # Remove \r | \n | \r\n
             print('> Client data received: ' + data)
 
         except:
@@ -79,7 +79,5 @@ def messageRelay():
 
 
 messageRelay()
-
-
 
 
