@@ -1,12 +1,17 @@
 import socket
 import sys
+import os
 import subprocess
+import hashlib
 
 
 def messageRelay():
+    global data
     HOST = ''  # Listen on all interfaces.
     PORT = 8888  # Assign port 8888
     Usernames = []
+    Password = []
+
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((HOST, PORT))
@@ -26,14 +31,33 @@ def messageRelay():
     except socket.gaierror:
         print("There was an error connecting")
 
-    # Server reports back to client
+    # fetch username
     conn.sendall(b'Tell me your name first: ')
     data = conn.recv(1024)
     username = str(data.decode('ascii')).rstrip()
-    print("> Username:" + username)
-    conn.sendall(b'Welcome to the server ' + username.encode() + b'! \r\n')
+
+    # fetch password.
+    conn.sendall(b'Type in a Password:')
+    data = conn.recv(1024)
+    password = data
+    password = password.rstrip()
+
+    # encode password.
+    conn.sendall(hashlib.pbkdf2_hmac('sha256', password, b'zoutje', 1))
+    print(hashlib.pbkdf2_hmac('sha256', password, b'zoutje', 1))
+
+    if password == b'':
+        print("> Username:" + username + " " + str(password))
+        print(password)
+
+
+    # Welcome user to the server.
+    conn.sendall(b'\r\nWelcome to the server ' + username.encode() + b'! \r\n\r\n')
     conn.sendall(b'Type something to me and I will respond with the same. \r\n')
-    conn.sendall(b'Try launching an app through me, to stop type stop.\r\n\r\n')
+    conn.sendall(b'Try launching an app through me, for example:\r\n')
+    conn.sendall(b'Notepad, Calculator, Netflix.\r\n')
+    conn.sendall(b'To stop type stop.\r\n\r\n')
+    conn.sendall(b'Lets go!!!!:\r\n')
 
     while True:
         try:
@@ -46,17 +70,7 @@ def messageRelay():
             print("No data or invalid data received")
 
         try:
-            if data == "":
-                print("Ignoring empty input")
-            else:
-                conn.sendall(b'You told me: ' + data.encode() + b"\r\n")
-
-        except:
-            print("No valid input!")
-            conn.sendall(b"No valid input")
-
-        try:
-            if data == "stop":
+            if data == "stop" or data == "Stop":
                 print('> Client disconnected: ' + addr[0] + ':' + str(addr[1]))
                 conn.sendall(b"Disconnecting from server :)")
                 conn.close()
@@ -66,29 +80,25 @@ def messageRelay():
             print(Err)
             return
 
-        except:
-            print("Something else went wrong")
+        try:
+            if data == "notepad" or data == "Notepad":
+                subprocess.Popen('C:\\Windows\\System32\\notepad.exe')
 
+        except:
+            print("Couldn't open Notepad")
+
+        try:
+            if data == "calculator" or data == "Calculator" or data == "Calc" or data == "calc":
+                subprocess.Popen('C:\\Windows\\System32\\calc.exe')
+
+        except:
+            print("Couldn't open calc")
+
+        try:
+            if data == "netflix" or data == "Netflix":
+                os.system('start Netflix:')
+
+        except:
+            print("Couldn't open Netflix")
 
 messageRelay()
-
-
-def openApps():
-    try:
-        if data == "notepad":
-            subprocess.Popen('C:\\Windows\\System32\\notepad.exe')
-
-    except:
-        print("Couldnt open Notepad")
-
-    try:
-        if data == "Notepad":
-            subprocess.Popen('C:\\Windows\\System32\\notepad.exe')
-
-    except:
-        print("Couldnt open Notepad")
-
-
-openApps()
-
-
