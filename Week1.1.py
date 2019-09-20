@@ -49,24 +49,31 @@ def messageRelay():
             # Fecth users name
             data = conn.recv(1024)
             data = str(data.decode('ascii')).rstrip()
-            print(data)
             if data != b'':
                 username = data
                 print(username)
-
-            if username != b'':
                 conn.sendall(b'Tell me password: \r\n')
-                # Fetch password
-                data = conn.recv(1024)
-                data = str(data.decode('ascii')).rstrip()
-                if password != b'':
-                    print(data)
+                if data != b'':
                     password = data
                     print(password)
 
-
     except:
-        conn.sendall(b'Something went wrong with filling in your username or password.!\r\n')
+        conn.sendall(b'Something went wrong with filling in your username\r\n')
+
+    # try:
+    #     while True:
+    #         if username != b'':
+    #             conn.sendall(b'Tell me password: \r\n')
+    #         # Fetch password
+    #         data = conn.recv(1024)
+    #         data = str(data.decode('ascii')).rstrip()
+    #         if password != b'':
+    #             password = data
+    #             print(password)
+    #
+    # except:
+    #     conn.sendall(b'Something went wrong with filling in your password\r\n')
+
 
     # try:
     #     while True:
