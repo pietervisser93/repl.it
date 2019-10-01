@@ -25,3 +25,9 @@
 #
 # except:
 #     print('Couldnt catch username or password')
+
+
+log = open(r"C:\\Users\\Home\\PycharmProjects\repl.it\\log.txt")
+
+
+'> Connected with: ' + addr[0] + ':' + str(addr[1])

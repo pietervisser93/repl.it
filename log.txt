@@ -1,0 +1,6 @@
+20-Sep-2019 15:38 > Pietert connected with: 127.0.0.1:53796
+20-Sep-2019 15:38 > Pietert started: Calculator
+20-Sep-2019 15:38 > Pietert started: Notepad
+20-Sep-2019 15:38 > Pietert started: Netflix
+20-Sep-2019 15:38 > Pietert disconnected: 127.0.0.1:53796
+20-Sep-2019 15:38 > Pietert disconnected: 127.0.0.1:53796
